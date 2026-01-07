@@ -53,6 +53,37 @@
   :type 'boolean
   :group 'ros2)
 
+(defcustom ros2-show-modeline t
+  "Whether to show ROS2 status in the modeline."
+  :type 'boolean
+  :group 'ros2)
+
+(defcustom ros2-modeline-show-distro t
+  "Whether to show ROS2 distro in the modeline."
+  :type 'boolean
+  :group 'ros2)
+
+(defcustom ros2-modeline-show-workspace t
+  "Whether to show workspace name in the modeline."
+  :type 'boolean
+  :group 'ros2)
+
+(defcustom ros2-modeline-prefix "ros2"
+  "Prefix string to show in the modeline. Set to nil to hide."
+  :type '(choice (string :tag "Prefix")
+                 (const :tag "None" nil))
+  :group 'ros2)
+
+(defcustom ros2-modeline-show-icon t
+  "Whether to show the ROS2 icon in the modeline."
+  :type 'boolean
+  :group 'ros2)
+
+(defcustom ros2-modeline-icon "\ue893"
+  "Icon to display in the modeline (nf-dev-ros from Nerd Fonts)."
+  :type 'string
+  :group 'ros2)
+
 ;;; System ROS2 installation (Linux only)
 
 (defconst ros2--linux-install-path "/opt/ros"
@@ -174,12 +205,21 @@
 
 (defun ros2--modeline-string ()
   "Return the modeline string for ROS2 status."
-  (when-let ((distro (getenv "ROS_DISTRO")))
-    (let ((workspace (ros2--find-workspace-root)))
-      (if workspace
-          (format " [ros2:%s:%s]" distro
-                  (file-name-nondirectory (directory-file-name workspace)))
-        (format " [ros2:%s]" distro)))))
+  (when (and ros2-show-modeline (getenv "ROS_DISTRO"))
+    (let ((parts '())
+          (distro (getenv "ROS_DISTRO"))
+          (workspace (ros2--find-workspace-root))
+          (icon (when ros2-modeline-show-icon ros2-modeline-icon)))
+      (when ros2-modeline-prefix
+        (setq parts (append parts (list ros2-modeline-prefix))))
+      (when ros2-modeline-show-distro
+        (setq parts (append parts (list distro))))
+      (when (and ros2-modeline-show-workspace workspace)
+        (setq parts (append parts (list (file-name-nondirectory (directory-file-name workspace))))))
+      (when (or icon parts)
+        (format " %s%s"
+                (if icon (concat icon " ") "")
+                (string-join parts ":"))))))
 
 (defvar ros2-mode-line
   '(:eval (ros2--modeline-string))
@@ -187,7 +227,20 @@
 
 (put 'ros2-mode-line 'risky-local-variable t)
 
-(add-to-list 'mode-line-misc-info 'ros2-mode-line t)
+(defun ros2-modeline-enable ()
+  "Enable ROS2 modeline indicator."
+  (interactive)
+  (setq ros2-show-modeline t)
+  (add-to-list 'mode-line-misc-info 'ros2-mode-line t))
+
+(defun ros2-modeline-disable ()
+  "Disable ROS2 modeline indicator."
+  (interactive)
+  (setq ros2-show-modeline nil)
+  (setq mode-line-misc-info (delete 'ros2-mode-line mode-line-misc-info)))
+
+(when ros2-show-modeline
+  (add-to-list 'mode-line-misc-info 'ros2-mode-line t))
 
 ;;; Interactive commands
 
